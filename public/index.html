@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Live TV - Remote Controlled</title>
+    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
+    <style>
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+            font-family: sans-serif;
+            color: white;
+        }
+
+        #overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #111;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            cursor: pointer;
+        }
+
+        #start-btn {
+            padding: 20px 50px;
+            font-size: 24px;
+            color: white;
+            background: #e50914;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+        }
+
+        #start-btn:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+
+        #player-wrapper {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            display: none;
+        }
+
+        #vjs-player-container,
+        #yt-player-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+        }
+
+        .video-js,
+        #yt-iframe {
+            width: 100% !important;
+            height: 100% !important;
+            border: none;
+        }
+
+        #channel-info {
+            position: absolute;
+            top: 50px;
+            left: 50px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px 40px;
+            border-radius: 4px;
+            font-size: 32px;
+            display: none;
+            z-index: 160;
+            border-left: 8px solid #e50914;
+        }
+
+        #status-msg {
+            margin-top: 20px;
+            color: #aaa;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="overlay">
+        <button id="start-btn" onclick="startApp()" disabled>LOADING CHANNELS...</button>
+        <div id="status-msg">Connecting to backend...</div>
+    </div>
+
+    <div id="player-wrapper">
+        <div id="channel-info">Channel Name</div>
+        <div id="vjs-player-container">
+            <video id="main-player" class="video-js vjs-default-skin" preload="auto" playsinline></video>
+        </div>
+        <div id="yt-player-container">
+            <iframe id="yt-iframe" allow="autoplay; fullscreen" referrerpolicy="strict-origin-when-cross-origin"
+                allowfullscreen></iframe>
+        </div>
+    </div>
+
+    <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
+    <script>
+        let channels = [];
+        let currentIndex = 0;
+        let infoTimer;
+        const player = videojs('main-player');
+
+        // 1. Fetch channels as soon as page loads
+        async function fetchChannels() {
+            try {
+                const response = await fetch('/api/channels');
+                channels = await response.json();
+
+                if (channels.length > 0) {
+                    document.getElementById('start-btn').disabled = false;
+                    document.getElementById('start-btn').innerText = "WATCH LIVE";
+                    document.getElementById('status-msg').innerText = channels.length + " Channels Ready";
+                } else {
+                    document.getElementById('status-msg').innerHTML = "No channels found. <a href='/admin.html' style='color:red'>Go to Admin to add some.</a>";
+                }
+            } catch (err) {
+                document.getElementById('status-msg').innerText = "Backend Error: Is server.js running?";
+            }
+        }
+
+        function startApp() {
+            document.getElementById('overlay').style.display = 'none';
+            document.getElementById('player-wrapper').style.display = 'block';
+            changeChannel(0);
+            if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+        }
+
+        function changeChannel(index) {
+            if (channels.length === 0) return;
+            if (index >= channels.length) index = 0;
+            if (index < 0) index = channels.length - 1;
+            currentIndex = index;
+
+            const chan = channels[currentIndex];
+            const info = document.getElementById('channel-info');
+            info.innerText = (currentIndex + 1) + ". " + chan.name;
+            info.style.display = 'block';
+
+            if (chan.type === 'hls') {
+                document.getElementById('yt-player-container').style.display = 'none';
+                document.getElementById('yt-iframe').src = "";
+                document.getElementById('vjs-player-container').style.display = 'block';
+                player.src({ src: chan.src, type: 'application/x-mpegURL' });
+                player.play();
+            } else {
+                player.pause();
+                document.getElementById('vjs-player-container').style.display = 'none';
+                document.getElementById('yt-player-container').style.display = 'block';
+                document.getElementById('yt-iframe').src = "https://www.youtube-nocookie.com/embed/" + chan.id + "?autoplay=1&mute=0";
+            }
+
+            clearTimeout(infoTimer);
+            infoTimer = setTimeout(() => { info.style.display = 'none'; }, 3000);
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.keyCode === 38 || e.keyCode === 33) changeChannel(currentIndex - 1);
+            if (e.keyCode === 40 || e.keyCode === 34) changeChannel(currentIndex + 1);
+        });
+
+        // Initialize
+        fetchChannels();
+    </script>
+</body>
+
+</html>
