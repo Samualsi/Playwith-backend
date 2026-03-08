@@ -2,132 +2,280 @@
 <html>
 
 <head>
-    <title>TV App Admin</title>
+    <title>TV App Admin - Dashboard</title>
     <style>
         body {
-            font-family: sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             padding: 40px;
-            background: #f4f4f4;
+            background: #f0f2f5;
+            color: #333;
         }
 
         .card {
             background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            max-width: 900px;
+            margin: auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            background: #f9f9f9;
             padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            border: 1px solid #eee;
         }
 
         input,
         select {
-            padding: 10px;
-            margin: 5px 0;
+            padding: 12px;
+            margin: 8px 0;
             width: 100%;
             box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
         }
 
         button {
-            padding: 10px 20px;
+            padding: 12px 24px;
             cursor: pointer;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+
+        .btn-add {
             background: #e50914;
             color: white;
-            border: none;
-            border-radius: 4px;
+            flex: 2;
+        }
+
+        .btn-cancel {
+            background: #666;
+            color: white;
+            flex: 1;
+            display: none;
+        }
+
+        .btn-save {
+            background: #28a745;
+            color: white;
+            width: 100%;
+            margin-top: 20px;
+            font-size: 16px;
+        }
+
+        .btn-logout {
+            background: #333;
+            color: white;
+            padding: 8px 15px;
         }
 
         table {
             width: 100%;
             margin-top: 20px;
             border-collapse: collapse;
+            background: white;
         }
 
         th,
         td {
-            border: 1px solid #ddd;
-            padding: 12px;
+            border-bottom: 1px solid #eee;
+            padding: 15px;
             text-align: left;
         }
+
+        th {
+            background: #fafafa;
+            color: #666;
+            text-transform: uppercase;
+            font-size: 12px;
+        }
+
+        .action-btns {
+            display: flex;
+            gap: 5px;
+        }
+
+        .btn-edit {
+            background: #007bff;
+            color: white;
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+            padding: 5px 10px;
+            font-size: 12px;
+        }
     </style>
-    <button onclick="window.location.href='/api/logout'" style="background: #444; float: right;">Logout</button>
 </head>
 
 <body>
     <div class="card">
-        <h2>Add New Channel</h2>
-        <input type="text" id="name" placeholder="Channel Name (e.g. PTC News)">
-        <select id="type">
-            <option value="hls">HLS (m3u8 link)</option>
-            <option value="youtube">YouTube (Video ID)</option>
-        </select>
-        <input type="text" id="url" placeholder="URL or YouTube ID">
-        <button onclick="addChannel()">Add Channel</button>
+        <div class="header">
+            <h2>Channel Management</h2>
+            <button class="btn-logout" onclick="window.location.href='/api/logout'">Logout</button>
+        </div>
 
-        <hr>
-        <h2>Current Channels</h2>
-        <table id="channelTable">
+        <div class="form-group">
+            <h3 id="form-title">Add New Channel</h3>
+            <input type="text" id="name" placeholder="Channel Name (e.g. PTC Punjabi)">
+            <select id="type">
+                <option value="hls">HLS (m3u8 link)</option>
+                <option value="youtube">YouTube (Video ID)</option>
+            </select>
+            <input type="text" id="url" placeholder="Paste .m3u8 URL or YouTube Video ID here">
+
+            <div class="btn-row">
+                <button id="main-action-btn" class="btn-add" onclick="handleBtnClick()">ADD CHANNEL</button>
+                <button id="cancel-btn" class="btn-cancel" onclick="resetForm()">CANCEL EDIT</button>
+            </div>
+        </div>
+
+        <table>
             <thead>
                 <tr>
                     <th>#</th>
-                    <th>Name</th>
+                    <th>Channel Name</th>
                     <th>Type</th>
-                    <th>Action</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
-            <tbody></tbody>
+            <tbody id="channelTableBody">
+                <!-- Rows load here -->
+            </tbody>
         </table>
-        <br>
-        <button style="background: green;" onclick="saveToServer()">SAVE ALL CHANGES</button>
+
+        <button class="btn-save" onclick="saveToServer()">SAVE & PUBLISH ALL CHANGES</button>
     </div>
 
     <script>
         let channelList = [];
+        let editIndex = null;
 
-        async function loadChannels() {
-            const res = await fetch('http://localhost:3000/api/channels');
-            channelList = await res.json();
-            renderTable();
+        // 1. LOAD CHANNELS FROM SERVER
+        async function loadFromBackend() {
+            try {
+                const res = await fetch('/api/channels');
+                if (!res.ok) throw new Error("Not logged in");
+                channelList = await res.json();
+                renderTable();
+            } catch (err) {
+                window.location.href = '/login.html';
+            }
         }
 
         function renderTable() {
-            const tbody = document.querySelector('#channelTable tbody');
+            const tbody = document.getElementById('channelTableBody');
             tbody.innerHTML = '';
+
             channelList.forEach((chan, index) => {
-                tbody.innerHTML += `<tr>
-                    <td>${index + 1}</td>
-                    <td>${chan.name}</td>
-                    <td>${chan.type}</td>
-                    <td><button onclick="deleteChan(${index})">Delete</button></td>
-                </tr>`;
+                const urlDisplay = chan.type === 'hls' ? chan.src : chan.id;
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td><strong>${chan.name}</strong></td>
+                        <td><span style="color:${chan.type === 'youtube' ? 'red' : 'blue'}">${chan.type.toUpperCase()}</span></td>
+                        <td class="action-btns">
+                            <button class="btn-edit" onclick="prepareEdit(${index})">Edit</button>
+                            <button class="btn-delete" onclick="deleteChan(${index})">Delete</button>
+                        </td>
+                    </tr>
+                `;
             });
         }
 
-        function addChannel() {
+        // 2. ADD OR UPDATE LOGIC
+        function handleBtnClick() {
             const name = document.getElementById('name').value;
             const type = document.getElementById('type').value;
             const urlValue = document.getElementById('url').value;
+
+            if (!name || !urlValue) return alert("Please fill all fields");
 
             let obj = { name, type };
             if (type === 'hls') obj.src = urlValue;
             else obj.id = urlValue;
 
-            channelList.push(obj);
+            if (editIndex !== null) {
+                // Update existing
+                channelList[editIndex] = obj;
+            } else {
+                // Add new
+                channelList.push(obj);
+            }
+
+            resetForm();
             renderTable();
+        }
+
+        // 3. EDIT LOGIC
+        function prepareEdit(index) {
+            editIndex = index;
+            const chan = channelList[index];
+
+            document.getElementById('name').value = chan.name;
+            document.getElementById('type').value = chan.type;
+            document.getElementById('url').value = (chan.type === 'hls') ? chan.src : chan.id;
+
+            document.getElementById('form-title').innerText = "Editing: " + chan.name;
+            document.getElementById('main-action-btn').innerText = "UPDATE CHANNEL";
+            document.getElementById('main-action-btn').style.background = "#007bff";
+            document.getElementById('cancel-btn').style.display = "block";
+        }
+
+        function resetForm() {
+            editIndex = null;
+            document.getElementById('name').value = '';
+            document.getElementById('url').value = '';
+            document.getElementById('form-title').innerText = "Add New Channel";
+            document.getElementById('main-action-btn').innerText = "ADD CHANNEL";
+            document.getElementById('main-action-btn').style.background = "#e50914";
+            document.getElementById('cancel-btn').style.display = "none";
         }
 
         function deleteChan(index) {
-            channelList.splice(index, 1);
-            renderTable();
+            if (confirm("Delete this channel?")) {
+                channelList.splice(index, 1);
+                renderTable();
+            }
         }
 
+        // 4. SAVE TO FILE
         async function saveToServer() {
-            await fetch('/api/channels', {
+            const res = await fetch('/api/channels', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(channelList)
             });
-            alert("Saved to Backend!");
+            if (res.ok) alert("Channels Saved and Live!");
+            else alert("Error saving. Try logging in again.");
         }
 
-        loadChannels();
+        // Run on load
+        loadFromBackend();
     </script>
 </body>
 
