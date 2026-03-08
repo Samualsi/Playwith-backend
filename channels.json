@@ -3,5 +3,16 @@
     "name": "PTC",
     "type": "hls",
     "src": "https://d3qs3d2rkhfqrt.cloudfront.net/out/v1/3e22a9c278db4e3eb779afd42e41b0a6/index.m3u8"
+  },
+  {
+    "name": "SGPC",
+    "type": "youtube",
+    "id": "U7qo_yhHMLU"
+  },
+  {
+    "name": "Live Kirtan",
+    "type": "audio",
+    "src": "https://live.sgpc.net:8442/; nocache=889869",
+    "poster": "https://imgs.search.brave.com/r3sJujwLek2_XUffWCh32UzIfegnpjaKX_6Fy2dfuzk/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9ub21h/ZGljcGl4ZWwuY29t/L3dwLWNvbnRlbnQv/dXBsb2Fkcy8yMDIx/LzA5L0luZGlhXzE0/X0p1bmVfQW1yaXRz/YXJfTzAwM19hY3J0/ZG5fbmlrX2xvZ29f/MTE1MC5qcGc"
   }
 ]

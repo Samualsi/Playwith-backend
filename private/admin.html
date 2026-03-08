@@ -2,78 +2,42 @@
 <html>
 
 <head>
-    <title>TV App Admin - Dashboard</title>
+    <title>TV Admin</title>
     <style>
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            padding: 40px;
-            background: #f0f2f5;
-            color: #333;
-        }
-
-        .card {
-            background: white;
+            font-family: sans-serif;
             padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            max-width: 900px;
-            margin: auto;
+            background: #f4f4f4;
         }
 
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 20px;
-            margin-bottom: 20px;
-        }
-
-        .form-group {
-            background: #f9f9f9;
+        .box {
+            background: white;
             padding: 20px;
             border-radius: 8px;
-            margin-bottom: 20px;
-            border: 1px solid #eee;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            margin: auto;
         }
 
         input,
         select {
-            padding: 12px;
-            margin: 8px 0;
+            padding: 10px;
+            margin: 5px 0;
             width: 100%;
             box-sizing: border-box;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            font-size: 14px;
-        }
-
-        .btn-row {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
         }
 
         button {
-            padding: 12px 24px;
+            padding: 10px 20px;
             cursor: pointer;
             border: none;
-            border-radius: 6px;
+            border-radius: 4px;
             font-weight: bold;
-            transition: 0.2s;
         }
 
         .btn-add {
             background: #e50914;
             color: white;
-            flex: 2;
-        }
-
-        .btn-cancel {
-            background: #666;
-            color: white;
-            flex: 1;
-            display: none;
         }
 
         .btn-save {
@@ -81,201 +45,104 @@
             color: white;
             width: 100%;
             margin-top: 20px;
-            font-size: 16px;
-        }
-
-        .btn-logout {
-            background: #333;
-            color: white;
-            padding: 8px 15px;
         }
 
         table {
             width: 100%;
-            margin-top: 20px;
             border-collapse: collapse;
-            background: white;
+            margin-top: 20px;
         }
 
         th,
         td {
-            border-bottom: 1px solid #eee;
-            padding: 15px;
+            border-bottom: 1px solid #ddd;
+            padding: 10px;
             text-align: left;
-        }
-
-        th {
-            background: #fafafa;
-            color: #666;
-            text-transform: uppercase;
-            font-size: 12px;
-        }
-
-        .action-btns {
-            display: flex;
-            gap: 5px;
-        }
-
-        .btn-edit {
-            background: #007bff;
-            color: white;
-            padding: 5px 10px;
-            font-size: 12px;
-        }
-
-        .btn-delete {
-            background: #dc3545;
-            color: white;
-            padding: 5px 10px;
-            font-size: 12px;
         }
     </style>
 </head>
 
 <body>
-    <div class="card">
-        <div class="header">
-            <h2>Channel Management</h2>
-            <button class="btn-logout" onclick="window.location.href='/api/logout'">Logout</button>
-        </div>
-
-        <div class="form-group">
-            <h3 id="form-title">Add New Channel</h3>
-            <input type="text" id="name" placeholder="Channel Name (e.g. PTC Punjabi)">
-            <select id="type">
-                <option value="hls">HLS (m3u8 link)</option>
-                <option value="youtube">YouTube (Video ID)</option>
-            </select>
-            <input type="text" id="url" placeholder="Paste .m3u8 URL or YouTube Video ID here">
-
-            <div class="btn-row">
-                <button id="main-action-btn" class="btn-add" onclick="handleBtnClick()">ADD CHANNEL</button>
-                <button id="cancel-btn" class="btn-cancel" onclick="resetForm()">CANCEL EDIT</button>
-            </div>
-        </div>
+    <div class="box">
+        <button onclick="window.location.href='/api/logout'" style="float:right">Logout</button>
+        <h2 id="title">Add Channel</h2>
+        <input type="text" id="name" placeholder="Name">
+        <select id="type"
+            onchange="document.getElementById('p-div').style.display=(this.value=='audio'?'block':'none')">
+            <option value="hls">HLS (.m3u8)</option>
+            <option value="youtube">YouTube (ID)</option>
+            <option value="audio">Audio (MP3)</option>
+        </select>
+        <input type="text" id="url" placeholder="URL or ID">
+        <div id="p-div" style="display:none"><input type="text" id="poster" placeholder="Poster Image URL"></div>
+        <button class="btn-add" id="action-btn" onclick="addChan()">Add Channel</button>
 
         <table>
             <thead>
                 <tr>
-                    <th>#</th>
-                    <th>Channel Name</th>
+                    <th>Name</th>
                     <th>Type</th>
                     <th>Actions</th>
                 </tr>
             </thead>
-            <tbody id="channelTableBody">
-                <!-- Rows load here -->
-            </tbody>
+            <tbody id="tableBody"></tbody>
         </table>
-
-        <button class="btn-save" onclick="saveToServer()">SAVE & PUBLISH ALL CHANGES</button>
+        <button class="btn-save" onclick="save()">SAVE ALL CHANGES</button>
     </div>
 
     <script>
-        let channelList = [];
-        let editIndex = null;
+        let list = [];
+        let editIdx = null;
 
-        // 1. LOAD CHANNELS FROM SERVER
-        async function loadFromBackend() {
-            try {
-                const res = await fetch('/api/channels');
-                if (!res.ok) throw new Error("Not logged in");
-                channelList = await res.json();
-                renderTable();
-            } catch (err) {
-                window.location.href = '/login.html';
-            }
+        async function load() {
+            const res = await fetch('/api/channels');
+            list = await res.json();
+            render();
         }
 
-        function renderTable() {
-            const tbody = document.getElementById('channelTableBody');
-            tbody.innerHTML = '';
-
-            channelList.forEach((chan, index) => {
-                const urlDisplay = chan.type === 'hls' ? chan.src : chan.id;
-                tbody.innerHTML += `
-                    <tr>
-                        <td>${index + 1}</td>
-                        <td><strong>${chan.name}</strong></td>
-                        <td><span style="color:${chan.type === 'youtube' ? 'red' : 'blue'}">${chan.type.toUpperCase()}</span></td>
-                        <td class="action-btns">
-                            <button class="btn-edit" onclick="prepareEdit(${index})">Edit</button>
-                            <button class="btn-delete" onclick="deleteChan(${index})">Delete</button>
-                        </td>
-                    </tr>
-                `;
+        function render() {
+            const body = document.getElementById('tableBody');
+            body.innerHTML = '';
+            list.forEach((c, i) => {
+                body.innerHTML += `<tr><td>${c.name}</td><td>${c.type}</td><td>
+                    <button onclick="edit(${i})">Edit</button>
+                    <button onclick="list.splice(${i},1);render()">Del</button>
+                </td></tr>`;
             });
         }
 
-        // 2. ADD OR UPDATE LOGIC
-        function handleBtnClick() {
+        function addChan() {
             const name = document.getElementById('name').value;
             const type = document.getElementById('type').value;
-            const urlValue = document.getElementById('url').value;
+            const url = document.getElementById('url').value;
+            const poster = document.getElementById('poster').value;
 
-            if (!name || !urlValue) return alert("Please fill all fields");
+            const obj = { name, type };
+            if (type === 'youtube') obj.id = url; else obj.src = url;
+            if (type === 'audio') obj.poster = poster;
 
-            let obj = { name, type };
-            if (type === 'hls') obj.src = urlValue;
-            else obj.id = urlValue;
-
-            if (editIndex !== null) {
-                // Update existing
-                channelList[editIndex] = obj;
-            } else {
-                // Add new
-                channelList.push(obj);
-            }
-
-            resetForm();
-            renderTable();
+            if (editIdx !== null) list[editIdx] = obj; else list.push(obj);
+            editIdx = null;
+            document.getElementById('name').value = ''; document.getElementById('url').value = '';
+            render();
         }
 
-        // 3. EDIT LOGIC
-        function prepareEdit(index) {
-            editIndex = index;
-            const chan = channelList[index];
-
-            document.getElementById('name').value = chan.name;
-            document.getElementById('type').value = chan.type;
-            document.getElementById('url').value = (chan.type === 'hls') ? chan.src : chan.id;
-
-            document.getElementById('form-title').innerText = "Editing: " + chan.name;
-            document.getElementById('main-action-btn').innerText = "UPDATE CHANNEL";
-            document.getElementById('main-action-btn').style.background = "#007bff";
-            document.getElementById('cancel-btn').style.display = "block";
+        function edit(i) {
+            editIdx = i;
+            const c = list[i];
+            document.getElementById('name').value = c.name;
+            document.getElementById('type').value = c.type;
+            document.getElementById('url').value = c.type === 'youtube' ? c.id : c.src;
+            if (c.poster) document.getElementById('poster').value = c.poster;
+            document.getElementById('p-div').style.display = c.type === 'audio' ? 'block' : 'none';
+            document.getElementById('action-btn').innerText = "Update Channel";
         }
 
-        function resetForm() {
-            editIndex = null;
-            document.getElementById('name').value = '';
-            document.getElementById('url').value = '';
-            document.getElementById('form-title').innerText = "Add New Channel";
-            document.getElementById('main-action-btn').innerText = "ADD CHANNEL";
-            document.getElementById('main-action-btn').style.background = "#e50914";
-            document.getElementById('cancel-btn').style.display = "none";
+        async function save() {
+            await fetch('/api/channels', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(list) });
+            alert("Saved!");
         }
-
-        function deleteChan(index) {
-            if (confirm("Delete this channel?")) {
-                channelList.splice(index, 1);
-                renderTable();
-            }
-        }
-
-        // 4. SAVE TO FILE
-        async function saveToServer() {
-            const res = await fetch('/api/channels', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(channelList)
-            });
-            if (res.ok) alert("Channels Saved and Live!");
-            else alert("Error saving. Try logging in again.");
-        }
-
-        // Run on load
-        loadFromBackend();
+        load();
     </script>
 </body>
 

@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Live TV - Remote Controlled</title>
+    <title>Live TV Player</title>
     <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
     <style>
         body,
@@ -41,11 +41,7 @@
             border: none;
             border-radius: 50px;
             cursor: pointer;
-        }
-
-        #start-btn:disabled {
-            background: #555;
-            cursor: not-allowed;
+            font-weight: bold;
         }
 
         #player-wrapper {
@@ -72,36 +68,46 @@
             border: none;
         }
 
+        /* Audio Poster Layer */
+        #audio-poster {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            display: none;
+            z-index: 5;
+        }
+
+        /* TV Overlay */
         #channel-info {
             position: absolute;
             top: 50px;
             left: 50px;
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
+            background: rgba(0, 0, 0, 0.85);
             padding: 20px 40px;
             border-radius: 4px;
             font-size: 32px;
+            font-weight: bold;
             display: none;
             z-index: 160;
             border-left: 8px solid #e50914;
-        }
-
-        #status-msg {
-            margin-top: 20px;
-            color: #aaa;
+            transition: opacity 0.5s;
         }
     </style>
 </head>
 
 <body>
-
-    <div id="overlay">
-        <button id="start-btn" onclick="startApp()" disabled>LOADING CHANNELS...</button>
-        <div id="status-msg">Connecting to backend...</div>
+    <div id="overlay" onclick="startApp()">
+        <button id="start-btn">WATCH LIVE</button>
+        <p style="color: #888; margin-top: 15px;">Use Remote Arrows to change channels</p>
     </div>
 
     <div id="player-wrapper">
         <div id="channel-info">Channel Name</div>
+        <div id="audio-poster"></div>
         <div id="vjs-player-container">
             <video id="main-player" class="video-js vjs-default-skin" preload="auto" playsinline></video>
         </div>
@@ -118,25 +124,11 @@
         let infoTimer;
         const player = videojs('main-player');
 
-        // 1. Fetch channels as soon as page loads
-        async function fetchChannels() {
-            try {
-                const response = await fetch('/api/channels');
-                channels = await response.json();
+        async function startApp() {
+            const res = await fetch('/api/channels');
+            channels = await res.json();
+            if (channels.length === 0) return alert("No channels in database!");
 
-                if (channels.length > 0) {
-                    document.getElementById('start-btn').disabled = false;
-                    document.getElementById('start-btn').innerText = "WATCH LIVE";
-                    document.getElementById('status-msg').innerText = channels.length + " Channels Ready";
-                } else {
-                    document.getElementById('status-msg').innerHTML = "No channels found. <a href='/admin.html' style='color:red'>Go to Admin to add some.</a>";
-                }
-            } catch (err) {
-                document.getElementById('status-msg').innerText = "Backend Error: Is server.js running?";
-            }
-        }
-
-        function startApp() {
             document.getElementById('overlay').style.display = 'none';
             document.getElementById('player-wrapper').style.display = 'block';
             changeChannel(0);
@@ -144,40 +136,48 @@
         }
 
         function changeChannel(index) {
-            if (channels.length === 0) return;
             if (index >= channels.length) index = 0;
             if (index < 0) index = channels.length - 1;
             currentIndex = index;
 
             const chan = channels[currentIndex];
             const info = document.getElementById('channel-info');
+            const poster = document.getElementById('audio-poster');
+            const vjsCont = document.getElementById('vjs-player-container');
+            const ytCont = document.getElementById('yt-player-container');
+
             info.innerText = (currentIndex + 1) + ". " + chan.name;
             info.style.display = 'block';
+            info.style.opacity = '1';
 
-            if (chan.type === 'hls') {
-                document.getElementById('yt-player-container').style.display = 'none';
-                document.getElementById('yt-iframe').src = "";
-                document.getElementById('vjs-player-container').style.display = 'block';
-                player.src({ src: chan.src, type: 'application/x-mpegURL' });
+            // Reset
+            poster.style.display = 'none';
+            ytCont.style.display = 'none';
+            vjsCont.style.display = 'none';
+            document.getElementById('yt-iframe').src = "";
+
+            if (chan.type === 'hls' || chan.type === 'audio') {
+                vjsCont.style.display = 'block';
+                if (chan.type === 'audio' && chan.poster) {
+                    poster.style.backgroundImage = `url('${chan.poster}')`;
+                    poster.style.display = 'block';
+                }
+                player.src({ src: chan.src, type: chan.type === 'audio' ? 'audio/mpeg' : 'application/x-mpegURL' });
                 player.play();
             } else {
                 player.pause();
-                document.getElementById('vjs-player-container').style.display = 'none';
-                document.getElementById('yt-player-container').style.display = 'block';
-                document.getElementById('yt-iframe').src = "https://www.youtube-nocookie.com/embed/" + chan.id + "?autoplay=1&mute=0";
+                ytCont.style.display = 'block';
+                document.getElementById('yt-iframe').src = `https://www.youtube-nocookie.com/embed/${chan.id}?autoplay=1&mute=0&controls=0`;
             }
 
             clearTimeout(infoTimer);
-            infoTimer = setTimeout(() => { info.style.display = 'none'; }, 3000);
+            infoTimer = setTimeout(() => { info.style.opacity = '0'; }, 3000);
         }
 
         window.addEventListener('keydown', (e) => {
-            if (e.keyCode === 38 || e.keyCode === 33) changeChannel(currentIndex - 1);
-            if (e.keyCode === 40 || e.keyCode === 34) changeChannel(currentIndex + 1);
+            if ([38, 33, 37, 427].includes(e.keyCode)) changeChannel(currentIndex - 1);
+            if ([40, 34, 39, 428].includes(e.keyCode)) changeChannel(currentIndex + 1);
         });
-
-        // Initialize
-        fetchChannels();
     </script>
 </body>
 
