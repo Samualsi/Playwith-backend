@@ -11,7 +11,7 @@ const DATA_FILE = path.join(__dirname, 'channels.json');
 // --- ADMIN CREDENTIALS ---
 // Change these for better security
 const ADMIN_USER = "admin";
-const ADMIN_PASS = "12345";
+const ADMIN_PASS = "12345"; // CHANGE THIS!
 
 // --- MIDDLEWARE ---
 app.use(bodyParser.json());
@@ -93,23 +93,8 @@ app.get('/api/channels', (req, res) => {
 // POST Channels: Update the channel list
 // PROTECTED: Only logged-in admins can save changes
 app.post('/api/channels', checkAuth, (req, res) => {
-    try {
-        const channels = req.body;
-        fs.writeFileSync(DATA_FILE, JSON.stringify(channels, null, 2));
-        res.json({ success: true, message: "Channels saved successfully" });
-    } catch (err) {
-        res.status(500).json({ error: "Could not save data" });
-    }
+    fs.writeFileSync(DATA_FILE, JSON.stringify(req.body, null, 2));
+    res.json({ message: "Saved!" });
 });
 
-// --- START SERVER ---
-app.listen(PORT, () => {
-    console.log(`
-=========================================
-🚀 TV APP SERVER IS LIVE
-=========================================
-📺 Player: http://localhost:${PORT}/index.html
-⚙️ Admin:  http://localhost:${PORT}/admin.html
-=========================================
-    `);
-});
+app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));

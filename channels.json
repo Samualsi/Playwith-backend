@@ -3,25 +3,5 @@
     "name": "PTC",
     "type": "hls",
     "src": "https://d3qs3d2rkhfqrt.cloudfront.net/out/v1/3e22a9c278db4e3eb779afd42e41b0a6/index.m3u8"
-  },
-  {
-    "name": "INDIANNEWSPUNJAB",
-    "type": "hls",
-    "src": "https://newsxott.in/hls/indianewspunjab.m3u8"
-  },
-  {
-    "name": "MHoneNews",
-    "type": "hls",
-    "src": "https://mumt04.tangotv.in/MHONENEWS/index.m3u8"
-  },
-  {
-    "name": "PunjabiHits",
-    "type": "hls",
-    "src": "https://stream.ottlive.co.in/punjabihits/index.m3u8"
-  },
-  {
-    "name": "PTC SIMRAN",
-    "type": "youtube",
-    "id": "71lJ21mQiZw"
   }
 ]
