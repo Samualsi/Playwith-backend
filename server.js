@@ -10,7 +10,7 @@ const DATA_FILE = './channels.json';
 
 // --- CONFIGURATION ---
 const ADMIN_USER = "admin";
-const ADMIN_PASS = "12345"; // CHANGE THIS!
+const ADMIN_PASS = "12345@"; // CHANGE THIS!
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
